@@ -1372,3 +1372,8 @@ testMain builder = do
   testData <- builder transport
   defaultMain testData
 
+shouldExitWith :: Resolvable a => a -> DiedReason -> Process ()
+shouldExitWith a r = do
+ _ <- resolve a
+ d <- receiveWait [ match (\(ProcessMonitorNotification _ _ r') -> return r') ]
+ d `shouldBe` equalTo r
