@@ -70,6 +70,7 @@ test-suite SupervisorTests
                    distributed-process-supervisor,
                    distributed-process-extras,
                    distributed-process-client-server,
+                   distributed-process-tests >= 0.4.1 && < 0.5,
                    distributed-static,
                    bytestring,
                    data-accessor,
@@ -93,5 +94,4 @@ test-suite SupervisorTests
   ghc-options:     -Wall -threaded -rtsopts -with-rtsopts=-N -fno-warn-unused-do-bind -eventlog
   extensions:      CPP
   main-is:         TestSupervisor.hs
-  other-modules:   TestUtils
 

@@ -26,6 +26,7 @@ import Control.Distributed.Process.Supervisor hiding (start, shutdown)
 import qualified Control.Distributed.Process.Supervisor as Supervisor
 import Control.Distributed.Process.ManagedProcess.Client (shutdown)
 import Control.Distributed.Process.Serializable()
+import Control.Distributed.Process.Tests.Internal.Utils
 
 import Control.Distributed.Static (staticLabel)
 import Control.Monad (void, forM_, forM)
@@ -45,9 +46,9 @@ import Prelude hiding (catch)
 #endif
 
 import Test.HUnit (Assertion, assertFailure)
-import Test.Framework (Test, testGroup)
+import Test.Framework (Test, defaultMain, testGroup)
 import Test.Framework.Providers.HUnit (testCase)
-import TestUtils hiding (waitForExit)
+import Network.Transport.TCP
 import qualified Network.Transport as NT
 -- test utilities
 
@@ -1364,3 +1365,15 @@ tests transport = do
 main :: IO ()
 main = testMain $ tests
 
+testMain :: (NT.Transport -> IO [Test]) -> IO ()
+testMain builder = do
+  Right (transport, _) <- createTransportExposeInternals
+                                    "127.0.0.1" "10501" defaultTCPParameters
+  testData <- builder transport
+  defaultMain testData
+
+shouldExitWith :: Resolvable a => a -> DiedReason -> Process ()
+shouldExitWith a r = do
+ _ <- resolve a
+ d <- receiveWait [ match (\(ProcessMonitorNotification _ _ r') -> return r') ]
+ d `shouldBe` equalTo r
