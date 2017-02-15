@@ -28,7 +28,7 @@ import Control.Distributed.Process.ManagedProcess.Client (shutdown)
 import Control.Distributed.Process.Serializable()
 
 import Control.Distributed.Static (staticLabel)
-import Control.Monad (void, forM_, forM)
+import Control.Monad (void, forM_, forM, replicateM_)
 import Control.Rematch
   ( equalTo
   , is
@@ -172,6 +172,9 @@ exitIgnore = liftIO $ throwIO ChildInitIgnore
 noOp :: Process ()
 noOp = return ()
 
+throws :: Process ()
+throws = liftIO $ Ex.evaluate undefined
+
 blockIndefinitely :: Process ()
 blockIndefinitely = runTestProcess noOp
 
@@ -193,6 +196,7 @@ obedient = (sleepFor 5 Minutes)
 
 $(remotable [ 'exitIgnore
             , 'noOp
+            , 'throws
             , 'blockIndefinitely
             , 'sleepy
             , 'obedient
@@ -405,9 +409,10 @@ permanentChildrenAlwaysRestart :: ChildStart -> ProcessId -> Process ()
 permanentChildrenAlwaysRestart cs sup = do
   let spec = permChild cs
   (ChildAdded ref) <- startNewChild sup spec
-  Just pid <- resolve ref
-  testProcessStop pid  -- a normal stop should *still* trigger a restart
-  verifyChildWasRestarted (childKey spec) pid sup
+  replicateM_ 2 $ do
+        Just pid <- resolve ref
+        testProcessStop pid  -- a normal stop should *still* trigger a restart
+        verifyChildWasRestarted (childKey spec) pid sup
 
 temporaryChildrenNeverRestart :: ChildStart -> ProcessId -> Process ()
 temporaryChildrenNeverRestart cs sup = do
@@ -429,9 +434,10 @@ transientChildrenAbnormalExit :: ChildStart -> ProcessId -> Process ()
 transientChildrenAbnormalExit cs sup = do
   let spec = transientWorker cs
   (ChildAdded ref) <- startNewChild sup spec
-  Just pid <- resolve ref
-  kill pid "bye bye"
-  verifyChildWasRestarted (childKey spec) pid sup
+  replicateM_ 2 $ do
+      Just pid <- resolve ref
+      kill pid "bye bye"
+      verifyChildWasRestarted (childKey spec) pid sup
 
 transientChildrenExitShutdown :: ChildStart -> ProcessId -> Process ()
 transientChildrenExitShutdown cs sup = do
@@ -1167,6 +1173,10 @@ tests transport = do
                 (withSupervisor restartOne []
                     (withClosure permanentChildrenAlwaysRestart
                                  $(mkStaticClosure 'blockIndefinitely)))
+          , testCase "Permanent Children Always Restart (Closure Insta Exit)"
+                (withSupervisor restartOne []
+                    (withClosure permanentChildrenAlwaysRestart
+                                 $(mkStaticClosure 'noOp)))
           , testCase "Permanent Children Always Restart (Chan)"
                 (withSupervisor restartOne []
                     (withChan permanentChildrenAlwaysRestart blockIndefinitely))
@@ -1188,6 +1198,10 @@ tests transport = do
                 (withSupervisor restartOne []
                     (withClosure transientChildrenAbnormalExit
                                  $(mkStaticClosure 'blockIndefinitely)))
+          , testCase "Transient Children Do Restart When Exiting Abnormally (Closure Insta Throw)"
+                (withSupervisor restartOne []
+                    (withClosure transientChildrenAbnormalExit
+                                 $(mkStaticClosure 'throws)))
           , testCase "Transient Children Do Restart When Exiting Abnormally (Chan)"
                 (withSupervisor restartOne []
                     (withChan transientChildrenAbnormalExit blockIndefinitely))
