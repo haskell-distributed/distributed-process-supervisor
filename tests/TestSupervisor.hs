@@ -172,6 +172,9 @@ exitIgnore = liftIO $ throwIO ChildInitIgnore
 noOp :: Process ()
 noOp = return ()
 
+throws :: Process ()
+throws = liftIO $ Ex.evaluate undefined
+
 blockIndefinitely :: Process ()
 blockIndefinitely = runTestProcess noOp
 
@@ -193,6 +196,7 @@ obedient = (sleepFor 5 Minutes)
 
 $(remotable [ 'exitIgnore
             , 'noOp
+            , 'throws
             , 'blockIndefinitely
             , 'sleepy
             , 'obedient
@@ -1194,10 +1198,10 @@ tests transport = do
                 (withSupervisor restartOne []
                     (withClosure transientChildrenAbnormalExit
                                  $(mkStaticClosure 'blockIndefinitely)))
-          , testCase "Transient Children Do Restart When Exiting Abnormally (Closure Insta Exit)"
+          , testCase "Transient Children Do Restart When Exiting Abnormally (Closure Insta Throw)"
                 (withSupervisor restartOne []
                     (withClosure transientChildrenAbnormalExit
-                                 $(mkStaticClosure 'noOp)))
+                                 $(mkStaticClosure 'throws)))
           , testCase "Transient Children Do Restart When Exiting Abnormally (Chan)"
                 (withSupervisor restartOne []
                     (withChan transientChildrenAbnormalExit blockIndefinitely))
