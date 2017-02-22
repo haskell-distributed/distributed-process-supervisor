@@ -395,7 +395,6 @@ instance ToChildStart (Closure (Process ())) where
 instance ToChildStart (Closure (SupervisorPid -> Process (ChildPid, Message))) where
   toChildStart = return . CreateHandle
 
-
 -- StarterProcess variants of ChildStart
 
 expectTriple :: Process (SupervisorPid, ChildKey, SendPort ChildPid)
